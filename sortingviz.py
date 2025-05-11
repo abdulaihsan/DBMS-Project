@@ -11,6 +11,8 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                             QTextEdit, QScrollArea)
 from PyQt5.QtCore import Qt, QTimer, QTime
 from PyQt5.QtGui import QPainter, QColor, QFont
+from connect import DatabaseConnection
+import logging
 
 # Constants
 WINDOW_WIDTH = 1200
@@ -22,120 +24,146 @@ LOGIN_HEIGHT = 400
 
 class UserSystem:
     def __init__(self):
-        self.users_file = "users.csv"
-        self.users_df = self.load_users()
-        
-    def load_users(self):
-        if os.path.exists(self.users_file):
-            return pd.read_csv(self.users_file)
-        return pd.DataFrame(columns=['username', 'password_hash'])
-    
-    def save_users(self):
-        self.users_df.to_csv(self.users_file, index=False)
+        self.db = DatabaseConnection()
     
     def register_user(self, username, password):
-        if username in self.users_df['username'].values:
+        try:
+            # Check if username exists
+            check_query = "SELECT username FROM users WHERE username = %s"
+            result = self.db.execute_query(check_query, (username,))
+            if result:
+                return False
+            
+            # Hash password and insert new user
+            hashed = hashlib.sha256(password.encode()).hexdigest()
+            insert_query = "INSERT INTO users (username, password_hash) VALUES (%s, %s)"
+            self.db.execute_query(insert_query, (username, hashed))
+            return True
+        except Exception as e:
+            logging.error(f"Error registering user: {e}")
             return False
-        hashed = hashlib.sha256(password.encode()).hexdigest()
-        new_user = pd.DataFrame({'username': [username], 'password_hash': [hashed]})
-        self.users_df = pd.concat([self.users_df, new_user], ignore_index=True)
-        self.save_users()
-        return True
     
     def verify_user(self, username, password):
-        if username not in self.users_df['username'].values:
+        try:
+            # Get user's password hash
+            query = "SELECT password_hash FROM users WHERE username = %s"
+            result = self.db.execute_query(query, (username,))
+            
+            if not result:
+                return False
+            
+            # Verify password
+            hashed = hashlib.sha256(password.encode()).hexdigest()
+            return result[0][0] == hashed
+        except Exception as e:
+            logging.error(f"Error verifying user: {e}")
             return False
-        hashed = hashlib.sha256(password.encode()).hexdigest()
-        return self.users_df.loc[self.users_df['username'] == username, 'password_hash'].iloc[0] == hashed
 
 class LoggingSystem:
     def __init__(self):
-        self.comparison_logs_file = "comparison_logs.csv"
-        self.performance_logs_file = "performance_logs.csv"
-        self.comparison_logs_df = self.load_comparison_logs()
-        self.performance_logs_df = self.load_performance_logs()
-    
-    def load_comparison_logs(self):
-        if os.path.exists(self.comparison_logs_file):
-            return pd.read_csv(self.comparison_logs_file)
-        return pd.DataFrame(columns=[
-            'timestamp', 'username', 'left_algorithm', 'right_algorithm',
-            'array_size', 'winner'
-        ])
-    
-    def load_performance_logs(self):
-        if os.path.exists(self.performance_logs_file):
-            return pd.read_csv(self.performance_logs_file)
-        return pd.DataFrame(columns=[
-            'timestamp', 'username', 'algorithm', 'execution_time_ms',
-            'array_size', 'array_data'
-        ])
-    
-    def save_logs(self):
-        self.comparison_logs_df.to_csv(self.comparison_logs_file, index=False)
-        self.performance_logs_df.to_csv(self.performance_logs_file, index=False)
+        try:
+            self.db = DatabaseConnection()
+        except Exception as e:
+            logging.error(f"Error initializing database connection: {e}")
+            raise
     
     def add_log(self, username, left_algo, right_algo, time1, time2, array_data):
-        # Add to comparison logs
-        comparison_entry = pd.DataFrame({
-            'timestamp': [datetime.now().strftime('%Y-%m-%d %H:%M:%S')],
-            'username': [username],
-            'left_algorithm': [left_algo],
-            'right_algorithm': [right_algo],
-            'array_size': [len(array_data)],
-            'winner': [left_algo if time1 < time2 else right_algo]
-        })
-        self.comparison_logs_df = pd.concat([self.comparison_logs_df, comparison_entry], ignore_index=True)
-        
-        # Add to performance logs
-        performance_entries = pd.DataFrame({
-            'timestamp': [datetime.now().strftime('%Y-%m-%d %H:%M:%S')] * 2,
-            'username': [username] * 2,
-            'algorithm': [left_algo, right_algo],
-            'execution_time_ms': [time1, time2],
-            'array_size': [len(array_data)] * 2,
-            'array_data': [str(array_data)] * 2
-        })
-        self.performance_logs_df = pd.concat([self.performance_logs_df, performance_entries], ignore_index=True)
-        
-        self.save_logs()
-    
+        try:
+            # Add to comparison logs
+            comparison_query = """
+                INSERT INTO comparison_logs 
+                (timestamp, username, left_algorithm, right_algorithm, array_size, winner)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """
+            comparison_params = (
+                datetime.now(),
+                username,
+                left_algo,
+                right_algo,
+                len(array_data),
+                left_algo if time1 < time2 else right_algo
+            )
+            self.db.execute_query(comparison_query, comparison_params)
+            
+            # Add to performance logs
+            performance_query = """
+                INSERT INTO performance_logs 
+                (timestamp, username, algorithm, execution_time_ms, array_size, array_data)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """
+            performance_params = [
+                (datetime.now(), username, left_algo, time1, len(array_data), str(array_data)),
+                (datetime.now(), username, right_algo, time2, len(array_data), str(array_data))
+            ]
+            self.db.execute_many(performance_query, performance_params)
+        except Exception as e:
+            logging.error(f"Error adding log: {e}")
+            raise
+
     def get_comparison_stats(self):
         """Get statistics about algorithm comparisons"""
-        if self.comparison_logs_df.empty:
-            return "No comparison data available"
-        
-        stats = []
-        stats.append("Comparison Statistics:")
-        stats.append(f"Total comparisons: {len(self.comparison_logs_df)}")
-        
-        # Count wins for each algorithm
-        wins = self.comparison_logs_df['winner'].value_counts()
-        stats.append("\nAlgorithm Win Counts:")
-        for algo, count in wins.items():
-            stats.append(f"{algo}: {count} wins")
-        
-        return "\n".join(stats)
+        try:
+            query = """
+                SELECT 
+                    COUNT(*) as total_comparisons,
+                    winner,
+                    COUNT(*) as win_count
+                FROM comparison_logs
+                GROUP BY winner
+                ORDER BY win_count DESC
+            """
+            results = self.db.execute_query(query)
+            
+            if not results:
+                return "No comparison data available"
+            
+            stats = []
+            stats.append("Comparison Statistics:")
+            stats.append(f"Total comparisons: {results[0][0]}")
+            
+            stats.append("\nAlgorithm Win Counts:")
+            for _, algo, count in results:
+                stats.append(f"{algo}: {count} wins")
+            
+            return "\n".join(stats)
+        except Exception as e:
+            logging.error(f"Error getting comparison stats: {e}")
+            return "Error retrieving comparison statistics"
     
     def get_performance_stats(self):
         """Get statistics about algorithm performance"""
-        if self.performance_logs_df.empty:
-            return "No performance data available"
-        
-        stats = []
-        stats.append("Performance Statistics:")
-        
-        # Group by algorithm and calculate statistics
-        algo_stats = self.performance_logs_df.groupby('algorithm')['execution_time_ms'].agg(['mean', 'min', 'max', 'count'])
-        stats.append("\nAlgorithm Performance (in milliseconds):")
-        for algo, row in algo_stats.iterrows():
-            stats.append(f"\n{algo}:")
-            stats.append(f"  Average time: {row['mean']:.2f}ms")
-            stats.append(f"  Best time: {row['min']:.2f}ms")
-            stats.append(f"  Worst time: {row['max']:.2f}ms")
-            stats.append(f"  Total runs: {row['count']}")
-        
-        return "\n".join(stats)
+        try:
+            query = """
+                SELECT 
+                    algorithm,
+                    AVG(execution_time_ms) as avg_time,
+                    MIN(execution_time_ms) as min_time,
+                    MAX(execution_time_ms) as max_time,
+                    COUNT(*) as total_runs
+                FROM performance_logs
+                GROUP BY algorithm
+                ORDER BY avg_time
+            """
+            results = self.db.execute_query(query)
+            
+            if not results:
+                return "No performance data available"
+            
+            stats = []
+            stats.append("Performance Statistics:")
+            stats.append("\nAlgorithm Performance (in milliseconds):")
+            
+            for algo, avg_time, min_time, max_time, total_runs in results:
+                stats.append(f"\n{algo}:")
+                stats.append(f"  Average time: {avg_time:.2f}ms")
+                stats.append(f"  Best time: {min_time:.2f}ms")
+                stats.append(f"  Worst time: {max_time:.2f}ms")
+                stats.append(f"  Total runs: {total_runs}")
+            
+            return "\n".join(stats)
+        except Exception as e:
+            logging.error(f"Error getting performance stats: {e}")
+            return "Error retrieving performance statistics"
 
 class FeedbackSystem:
     def __init__(self):
@@ -320,56 +348,66 @@ class Settings:
         self.default_color = QColor(170, 183, 184)  # Default bar color
         self.complete_color = QColor(100, 180, 100)  # Color when sorting is complete
         self.animation_speed = 1  # Speed multiplier (1-10)
-        self.settings_file = "user_settings.csv"
-        self.settings_df = self.load_settings()
+        self.db = DatabaseConnection()
         self.load_user_settings()
         
-    def load_settings(self):
-        if os.path.exists(self.settings_file):
-            return pd.read_csv(self.settings_file)
-        return pd.DataFrame(columns=['username', 'default_color', 'complete_color', 'animation_speed'])
-    
     def save_settings(self):
         try:
-            # Update or add settings for current user
             if self.username:
                 # Check if user settings exist
-                user_mask = self.settings_df['username'] == self.username
-                if user_mask.any():
+                check_query = "SELECT id FROM user_settings WHERE username = %s"
+                result = self.db.execute_query(check_query, (self.username,))
+                
+                if result:
                     # Update existing settings
-                    self.settings_df.loc[user_mask, 'default_color'] = self.default_color.name()
-                    self.settings_df.loc[user_mask, 'complete_color'] = self.complete_color.name()
-                    self.settings_df.loc[user_mask, 'animation_speed'] = self.animation_speed
+                    update_query = """
+                        UPDATE user_settings 
+                        SET default_color = %s, complete_color = %s, animation_speed = %s
+                        WHERE username = %s
+                    """
+                    self.db.execute_query(update_query, (
+                        self.default_color.name(),
+                        self.complete_color.name(),
+                        self.animation_speed,
+                        self.username
+                    ))
                 else:
-                    # Add new user settings
-                    new_settings = pd.DataFrame({
-                        'username': [self.username],
-                        'default_color': [self.default_color.name()],
-                        'complete_color': [self.complete_color.name()],
-                        'animation_speed': [self.animation_speed]
-                    })
-                    self.settings_df = pd.concat([self.settings_df, new_settings], ignore_index=True)
-            
-            # Save all settings
-            self.settings_df.to_csv(self.settings_file, index=False)
+                    # Insert new settings
+                    insert_query = """
+                        INSERT INTO user_settings (username, default_color, complete_color, animation_speed)
+                        VALUES (%s, %s, %s, %s)
+                    """
+                    self.db.execute_query(insert_query, (
+                        self.username,
+                        self.default_color.name(),
+                        self.complete_color.name(),
+                        self.animation_speed
+                    ))
         except Exception as e:
-            print(f"Error saving settings: {e}")
+            logging.error(f"Error saving settings: {e}")
+            raise
     
     def load_user_settings(self):
         try:
-            if self.username and not self.settings_df.empty:
-                user_settings = self.settings_df[self.settings_df['username'] == self.username]
-                if not user_settings.empty:
-                    self.default_color = QColor(user_settings['default_color'].iloc[0])
-                    self.complete_color = QColor(user_settings['complete_color'].iloc[0])
-                    self.animation_speed = int(user_settings['animation_speed'].iloc[0])
+            if self.username:
+                query = """
+                    SELECT default_color, complete_color, animation_speed
+                    FROM user_settings
+                    WHERE username = %s
+                """
+                result = self.db.execute_query(query, (self.username,))
+                
+                if result:
+                    self.default_color = QColor(result[0][0])
+                    self.complete_color = QColor(result[0][1])
+                    self.animation_speed = int(result[0][2])
                 else:
                     # Reset to defaults if no settings found for user
                     self.default_color = QColor(170, 183, 184)
                     self.complete_color = QColor(100, 180, 100)
                     self.animation_speed = 1
         except Exception as e:
-            print(f"Error loading settings: {e}")
+            logging.error(f"Error loading settings: {e}")
             # Use defaults if there's an error
             self.default_color = QColor(170, 183, 184)
             self.complete_color = QColor(100, 180, 100)
@@ -531,63 +569,67 @@ class FeedbackDialog(QDialog):
 
 class SortingAlgorithms:
     def __init__(self):
-        self.algorithms_file = "sorting_algorithms.csv"
-        self.algorithms_df = self.load_algorithms()
-        if self.algorithms_df.empty:
-            self.initialize_algorithms()
-    
-    def load_algorithms(self):
-        if os.path.exists(self.algorithms_file):
-            return pd.read_csv(self.algorithms_file)
-        return pd.DataFrame(columns=['AlgorithmID', 'Name', 'Description', 'TimeComplexity', 'SpaceComplexity'])
-    
-    def save_algorithms(self):
-        self.algorithms_df.to_csv(self.algorithms_file, index=False)
+        self.db = DatabaseConnection()
+        self.initialize_algorithms()
     
     def initialize_algorithms(self):
-        algorithms_data = {
-            'AlgorithmID': [1, 2, 3, 4, 5, 6],
-            'Name': [
-                'Bubble Sort',
-                'Selection Sort',
-                'Insertion Sort',
-                'Quick Sort',
-                'Merge Sort',
-                'Heap Sort'
-            ],
-            'Description': [
-                'Repeatedly steps through the list, compares adjacent elements and swaps them if they are in the wrong order.',
-                'Divides the input into a sorted and unsorted region, and iteratively shrinks the unsorted region by extracting the smallest element.',
-                'Builds the final sorted array one item at a time by comparing each item with the already sorted portion and inserting it at the correct position.',
-                'Uses a divide-and-conquer strategy, picking a pivot element and partitioning the array around it.',
-                'Divides the array into halves, recursively sorts them, and then merges the sorted halves.',
-                'Uses a binary heap data structure to sort elements, converting the array into a max heap and repeatedly extracting the maximum.'
-            ],
-            'TimeComplexity': [
-                'O(n²)',
-                'O(n²)',
-                'O(n²)',
-                'O(n log n) average, O(n²) worst',
-                'O(n log n)',
-                'O(n log n)'
-            ],
-            'SpaceComplexity': [
-                'O(1)',
-                'O(1)',
-                'O(1)',
-                'O(log n)',
-                'O(n)',
-                'O(1)'
-            ]
-        }
-        self.algorithms_df = pd.DataFrame(algorithms_data)
-        self.save_algorithms()
+        try:
+            # Check if algorithms already exist
+            check_query = "SELECT COUNT(*) FROM sorting_algorithms"
+            result = self.db.execute_query(check_query)
+            
+            if result[0][0] == 0:
+                # Insert default algorithms
+                algorithms_data = [
+                    ('Bubble Sort', 
+                     'Repeatedly steps through the list, compares adjacent elements and swaps them if they are in the wrong order.',
+                     'O(n²)', 'O(1)'),
+                    ('Selection Sort',
+                     'Divides the input into a sorted and unsorted region, and iteratively shrinks the unsorted region by extracting the smallest element.',
+                     'O(n²)', 'O(1)'),
+                    ('Insertion Sort',
+                     'Builds the final sorted array one item at a time by comparing each item with the already sorted portion and inserting it at the correct position.',
+                     'O(n²)', 'O(1)'),
+                    ('Quick Sort',
+                     'Uses a divide-and-conquer strategy, picking a pivot element and partitioning the array around it.',
+                     'O(n log n) average, O(n²) worst', 'O(log n)'),
+                    ('Merge Sort',
+                     'Divides the array into halves, recursively sorts them, and then merges the sorted halves.',
+                     'O(n log n)', 'O(n)'),
+                    ('Heap Sort',
+                     'Uses a binary heap data structure to sort elements, converting the array into a max heap and repeatedly extracting the maximum.',
+                     'O(n log n)', 'O(1)')
+                ]
+                
+                insert_query = """
+                    INSERT INTO sorting_algorithms (name, description, time_complexity, space_complexity)
+                    VALUES (%s, %s, %s, %s)
+                """
+                self.db.execute_many(insert_query, algorithms_data)
+        except Exception as e:
+            logging.error(f"Error initializing algorithms: {e}")
+            raise
     
     def get_algorithm_details(self, algorithm_name):
-        algorithm = self.algorithms_df[self.algorithms_df['Name'] == algorithm_name]
-        if not algorithm.empty:
-            return algorithm.iloc[0]
-        return None
+        try:
+            query = """
+                SELECT name, description, time_complexity, space_complexity
+                FROM sorting_algorithms
+                WHERE name = %s
+            """
+            result = self.db.execute_query(query, (algorithm_name,))
+            
+            if result:
+                return {
+                    'Name': result[0][0],
+                    'Description': result[0][1],
+                    'TimeComplexity': result[0][2],
+                    'SpaceComplexity': result[0][3]
+                }
+            return None
+        except Exception as e:
+            logging.error(f"Error getting algorithm details: {e}")
+            return None
 
 class ResultsDialog(QDialog):
     def __init__(self, left_algo_name, right_algo_name, time1, time2, algorithms, parent=None):
