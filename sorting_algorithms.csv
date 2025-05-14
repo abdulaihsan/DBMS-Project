@@ -1,0 +1,7 @@
+AlgorithmID,Name,Description,TimeComplexity,SpaceComplexity
+1,Bubble Sort,"Repeatedly steps through the list, compares adjacent elements and swaps them if they are in the wrong order.",O(n²),O(1)
+2,Selection Sort,"Divides the input into a sorted and unsorted region, and iteratively shrinks the unsorted region by extracting the smallest element.",O(n²),O(1)
+3,Insertion Sort,Builds the final sorted array one item at a time by comparing each item with the already sorted portion and inserting it at the correct position.,O(n²),O(1)
+4,Quick Sort,"Uses a divide-and-conquer strategy, picking a pivot element and partitioning the array around it.","O(n log n) average, O(n²) worst",O(log n)
+5,Merge Sort,"Divides the array into halves, recursively sorts them, and then merges the sorted halves.",O(n log n),O(n)
+6,Heap Sort,"Uses a binary heap data structure to sort elements, converting the array into a max heap and repeatedly extracting the maximum.",O(n log n),O(1)

@@ -11,6 +11,9 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                             QTextEdit, QScrollArea)
 from PyQt5.QtCore import Qt, QTimer, QTime
 from PyQt5.QtGui import QPainter, QColor, QFont
+
+# Add the backend directory to the Python path
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'backend'))
 from connect import DatabaseConnection
 import logging
 

@@ -2,6 +2,11 @@ import sys
 from PyQt5.QtWidgets import QApplication
 from sortingviz import MainWindow
 import logging
+import os
+import sys
+
+# Add the backend directory to the Python path
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'backend'))
 from connect import DatabaseConnection
 
 def setup_logging():
