@@ -1,0 +1,85 @@
+2025-05-11 04:47:47,495 - INFO - Database connection successful
+2025-05-11 04:51:52,129 - INFO - Database connection successful
+2025-05-11 05:49:59,243 - INFO - Database connection successful
+2025-05-11 05:50:12,288 - ERROR - Error executing query: column "username" does not exist
+LINE 4:                     WHERE username = 'abdullah'
+                                  ^
+
+2025-05-11 05:50:12,289 - ERROR - Error loading settings: column "username" does not exist
+LINE 4:                     WHERE username = 'abdullah'
+                                  ^
+
+2025-05-11 05:50:38,052 - ERROR - Error executing query: column "username" does not exist
+LINE 1: SELECT id FROM user_settings WHERE username = 'abdullah'
+                                           ^
+
+2025-05-11 05:50:38,053 - ERROR - Error saving settings: column "username" does not exist
+LINE 1: SELECT id FROM user_settings WHERE username = 'abdullah'
+                                           ^
+
+2025-05-11 05:50:53,327 - INFO - Database connection successful
+2025-05-11 05:50:59,718 - ERROR - Error executing query: column "username" does not exist
+LINE 4:                     WHERE username = 'abdullah'
+                                  ^
+
+2025-05-11 05:50:59,719 - ERROR - Error loading settings: column "username" does not exist
+LINE 4:                     WHERE username = 'abdullah'
+                                  ^
+
+2025-05-11 05:51:16,519 - ERROR - Error executing query: column "username" does not exist
+LINE 1: SELECT id FROM user_settings WHERE username = 'abdullah'
+                                           ^
+
+2025-05-11 05:51:16,520 - ERROR - Error saving settings: column "username" does not exist
+LINE 1: SELECT id FROM user_settings WHERE username = 'abdullah'
+                                           ^
+
+2025-05-11 05:51:55,743 - INFO - Database connection successful
+2025-05-11 05:52:01,726 - ERROR - Error executing query: column "username" does not exist
+LINE 4:                     WHERE username = 'abdullah'
+                                  ^
+
+2025-05-11 05:52:01,726 - ERROR - Error loading settings: column "username" does not exist
+LINE 4:                     WHERE username = 'abdullah'
+                                  ^
+
+2025-05-11 05:52:12,029 - ERROR - Error executing query: column "username" does not exist
+LINE 1: SELECT id FROM user_settings WHERE username = 'abdullah'
+                                           ^
+
+2025-05-11 05:52:12,029 - ERROR - Error saving settings: column "username" does not exist
+LINE 1: SELECT id FROM user_settings WHERE username = 'abdullah'
+                                           ^
+
+2025-05-11 05:52:56,789 - INFO - Database connection successful
+2025-05-11 05:53:04,830 - ERROR - Error executing query: column "username" does not exist
+LINE 4:                     WHERE username = 'abdullah'
+                                  ^
+
+2025-05-11 05:53:04,830 - ERROR - Error loading settings: column "username" does not exist
+LINE 4:                     WHERE username = 'abdullah'
+                                  ^
+
+2025-05-11 05:53:24,790 - ERROR - Error executing query: column "username" does not exist
+LINE 1: SELECT id FROM user_settings WHERE username = 'abdullah'
+                                           ^
+
+2025-05-11 05:53:24,790 - ERROR - Error saving settings: column "username" does not exist
+LINE 1: SELECT id FROM user_settings WHERE username = 'abdullah'
+                                           ^
+
+2025-05-11 05:54:21,502 - INFO - Database connection successful
+2025-05-11 05:55:26,314 - ERROR - Error executing query: column "username" of relation "comparison_logs" does not exist
+LINE 3:                 (timestamp, username, left_algorithm, right_...
+                                    ^
+
+2025-05-11 05:55:26,315 - ERROR - Error adding log: column "username" of relation "comparison_logs" does not exist
+LINE 3:                 (timestamp, username, left_algorithm, right_...
+                                    ^
+
+2025-05-11 05:56:38,119 - INFO - Database connection successful
+2025-05-11 05:59:18,777 - INFO - Database connection successful
+2025-05-11 06:03:42,217 - INFO - Database connection successful
+2025-05-11 18:16:58,704 - INFO - Database connection successful
+2025-05-11 18:36:40,946 - INFO - Database connection successful
+2025-05-12 00:16:46,373 - INFO - Database connection successful
